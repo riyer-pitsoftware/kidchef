@@ -45,6 +45,21 @@ def create_handler(service: RecipeService, *, web_dir: Path) -> type[BaseHTTPReq
                 self._send_file(web_dir / parsed.path.lstrip("/"))
                 return
 
+            if parsed.path.startswith("/assets/"):
+                relative = parsed.path[len("/assets/"):]
+                if not relative:
+                    self._send_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
+                    return
+                assets_root = (web_dir / "assets").resolve()
+                candidate = (assets_root / relative).resolve()
+                try:
+                    candidate.relative_to(assets_root)
+                except ValueError:
+                    self._send_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
+                    return
+                self._send_file(candidate)
+                return
+
             if parsed.path == "/api/health":
                 self._send_json(HTTPStatus.OK, service.health_payload())
                 return
