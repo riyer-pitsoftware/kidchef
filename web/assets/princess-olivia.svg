@@ -1,0 +1,29 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Princess Olivia">
+  <ellipse cx="100" cy="128" rx="60" ry="60" fill="#e8a8c9"/>
+  <ellipse cx="100" cy="146" rx="46" ry="38" fill="#fff0f5"/>
+  <ellipse cx="60" cy="148" rx="9" ry="6" fill="#f4a3b5" opacity="0.55"/>
+  <ellipse cx="140" cy="148" rx="9" ry="6" fill="#f4a3b5" opacity="0.55"/>
+  <ellipse cx="78" cy="118" rx="6" ry="8" fill="#2b1c10"/>
+  <ellipse cx="122" cy="118" rx="6" ry="8" fill="#2b1c10"/>
+  <circle cx="80" cy="115" r="2.2" fill="#fff"/>
+  <circle cx="124" cy="115" r="2.2" fill="#fff"/>
+  <line x1="72" y1="110" x2="68" y2="106" stroke="#2b1c10" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="78" y1="108" x2="78" y2="103" stroke="#2b1c10" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="84" y1="110" x2="88" y2="106" stroke="#2b1c10" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="116" y1="110" x2="112" y2="106" stroke="#2b1c10" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="122" y1="108" x2="122" y2="103" stroke="#2b1c10" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="128" y1="110" x2="132" y2="106" stroke="#2b1c10" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M 70 148 Q 100 174 130 148" stroke="#2b1c10" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+  <ellipse cx="100" cy="80" rx="3" ry="2" fill="#c995b3" opacity="0.55"/>
+  <path d="M 50 64 Q 100 56 150 64 L 146 74 Q 100 66 54 74 Z" fill="#f4c647" stroke="#9c6f15" stroke-width="1.5"/>
+  <path d="M 76 60 L 80 38 L 84 60 Z" fill="#f4c647" stroke="#9c6f15" stroke-width="1.2"/>
+  <path d="M 116 60 L 120 38 L 124 60 Z" fill="#f4c647" stroke="#9c6f15" stroke-width="1.2"/>
+  <path d="M 92 56 L 100 28 L 108 56 Z" fill="#f4c647" stroke="#9c6f15" stroke-width="1.2"/>
+  <circle cx="100" cy="40" r="5" fill="#ec5d9e" stroke="#9c6f15" stroke-width="1"/>
+  <circle cx="80" cy="46" r="3" fill="#5e9ddf" stroke="#9c6f15" stroke-width="0.8"/>
+  <circle cx="120" cy="46" r="3" fill="#5e9ddf" stroke="#9c6f15" stroke-width="0.8"/>
+  <circle cx="56" cy="38" r="1.5" fill="#fff8d8"/>
+  <circle cx="144" cy="38" r="1.5" fill="#fff8d8"/>
+  <circle cx="46" cy="55" r="1.2" fill="#fff8d8"/>
+  <circle cx="154" cy="55" r="1.2" fill="#fff8d8"/>
+</svg>

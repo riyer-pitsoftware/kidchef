@@ -29,6 +29,7 @@ const FILTER_OPTIONS = {
 
 const DEFAULT_STATE = {
   route: "meal",
+  kidName: "",
   mealType: "breakfast",
   ingredientInput: "",
   ingredients: [],
@@ -61,8 +62,11 @@ const app = document.getElementById("app");
 
 function loadSavedState() {
   const saved = safeParse(localStorage.getItem(STORAGE_KEY)) || {};
+  const kidName = typeof saved.kidName === "string" ? saved.kidName.trim() : "";
   return {
     ...DEFAULT_STATE,
+    kidName,
+    route: kidName ? DEFAULT_STATE.route : "welcome",
     mealType: saved.mealType || DEFAULT_STATE.mealType,
     ingredientInput: "",
     ingredients: Array.isArray(saved.ingredients) ? saved.ingredients : DEFAULT_STATE.ingredients,
@@ -95,6 +99,7 @@ function persistState() {
   localStorage.setItem(
     STORAGE_KEY,
     JSON.stringify({
+      kidName: state.kidName,
       mealType: state.mealType,
       ingredients: state.ingredients,
       filters: state.filters,
@@ -142,6 +147,23 @@ function joinList(values) {
   return values.filter(Boolean).join(", ");
 }
 
+function renderOlivia(message, { variant = "row", size = "" } = {}) {
+  const variantClass = variant === "stacked" ? "olivia--stacked" : "";
+  const sizeClass = size ? `olivia--${size}` : "";
+  return `
+    <div class="olivia ${variantClass} ${sizeClass}">
+      <div class="olivia__avatar">
+        <img src="./assets/princess-olivia.svg" alt="Princess Olivia" />
+      </div>
+      ${message ? `<div class="olivia__bubble">${escapeHTML(message)}</div>` : ""}
+    </div>
+  `;
+}
+
+const ICON_STAR_FILLED = `<svg class="icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 2.6l2.85 6.5 7.05.6-5.35 4.65 1.6 6.95L12 17.7l-6.15 3.6 1.6-6.95L2.1 9.7l7.05-.6z" fill="currentColor"/></svg>`;
+const ICON_STAR_OUTLINE = `<svg class="icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 2.6l2.85 6.5 7.05.6-5.35 4.65 1.6 6.95L12 17.7l-6.15 3.6 1.6-6.95L2.1 9.7l7.05-.6z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+const ICON_CLOSE = `<svg class="icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 6L18 18M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>`;
+
 function formatTimer(seconds) {
   const minutes = Math.floor(seconds / 60);
   const remaining = seconds % 60;
@@ -153,6 +175,8 @@ function formatTimer(seconds) {
 
 function formatRoute(route) {
   switch (route) {
+    case "welcome":
+      return "Welcome";
     case "meal":
       return "Meal";
     case "ingredients":
@@ -165,6 +189,8 @@ function formatRoute(route) {
       return "Recipe";
     case "stepper":
       return "Cooking";
+    case "celebrate":
+      return "Done!";
     case "favorites":
       return "Favorites";
     default:
@@ -720,7 +746,7 @@ function stepForward() {
     return;
   }
 
-  state.route = "recipe";
+  state.route = "celebrate";
   clearTimer();
   state.timer = null;
   persistState();
@@ -790,7 +816,41 @@ function renderBanner() {
   `;
 }
 
+function renderWelcomeScreen() {
+  return `
+    <section class="welcome-card">
+      <div class="welcome-portrait">
+        <img src="./assets/princess-olivia.svg" alt="Princess Olivia the dolphin" />
+      </div>
+      <div class="welcome-text">
+        <h1 class="welcome-greeting">Hi! I'm Princess Olivia.</h1>
+        <p class="welcome-subtitle">I'm a dolphin, and I love cooking with friends. What should I call you while we cook together?</p>
+      </div>
+      <form id="welcome-form" class="welcome-form" autocomplete="off">
+        <div class="field">
+          <label for="kid-name-input" class="visually-hidden">Your name</label>
+          <input
+            id="kid-name-input"
+            name="kid-name-input"
+            type="text"
+            inputmode="text"
+            autocomplete="given-name"
+            placeholder="Type your name"
+            maxlength="24"
+            autofocus
+            required
+          />
+        </div>
+        <button class="button button--primary" type="submit">Let's cook!</button>
+      </form>
+    </section>
+  `;
+}
+
 function renderMealScreen() {
+  const greeting = state.kidName
+    ? `Hi ${escapeHTML(state.kidName)}! What should we make?`
+    : `What should we make?`;
   return `
     <section class="hero-card">
       <div class="stack">
@@ -799,8 +859,8 @@ function renderMealScreen() {
           <span class="chip chip--quiet">Choose a meal</span>
         </div>
         <div>
-          <h2>What do you want to make?</h2>
-          <p>Pick a meal type, then enter ingredients and filters. The shell keeps the flow short and clear on iPhone Safari.</p>
+          <h1>${greeting}</h1>
+          <p>Pick a meal and we'll build something fun together.</p>
         </div>
       </div>
       <div class="meal-grid" role="list">
@@ -840,7 +900,7 @@ function renderIngredientsScreen() {
         <div class="panel__inner stack">
           <div class="panel__title">
             <div>
-              <h3>Ingredients on hand</h3>
+              <h1>Ingredients on hand</h1>
               <p>Add what you already have. Short tokens are fine.</p>
             </div>
             <span class="chip chip--quiet">Step 2</span>
@@ -866,7 +926,7 @@ function renderIngredientsScreen() {
           <div class="stack">
             <div class="muted">Added ingredients</div>
             <div class="token-list">
-              ${state.ingredients.length ? state.ingredients.map((ingredient) => `<span class="token">${escapeHTML(ingredient)}<button type="button" data-action="remove-ingredient" data-value="${escapeHTML(ingredient)}" aria-label="Remove ${escapeHTML(ingredient)}">×</button></span>`).join("") : `<div class="empty-card"><h3>No ingredients yet</h3><p class="muted">Start with a couple of ingredients you already have.</p></div>`}
+              ${state.ingredients.length ? state.ingredients.map((ingredient) => `<span class="token">${escapeHTML(ingredient)}<button type="button" data-action="remove-ingredient" data-value="${escapeHTML(ingredient)}" aria-label="Remove ${escapeHTML(ingredient)}">${ICON_CLOSE}</button></span>`).join("") : `<div class="empty-card"><h3>No ingredients yet</h3><p class="muted">Start with a couple of ingredients you already have.</p></div>`}
             </div>
           </div>
         </div>
@@ -938,7 +998,7 @@ function renderFiltersScreen() {
         <div class="panel__inner stack">
           <div class="panel__title">
             <div>
-              <h3>Filters</h3>
+              <h1>Filters</h1>
               <p>These rules shape which recipes can be shown.</p>
             </div>
             <span class="chip chip--quiet">Step 3</span>
@@ -1029,7 +1089,7 @@ function renderSuggestionCard(recipe) {
           <p class="recipe-card__summary">${escapeHTML(recipe.summary)}</p>
         </div>
         <button class="button button--tiny ${isFavorite ? "button--primary" : "button--ghost"}" type="button" data-action="toggle-favorite" data-recipe-id="${escapeHTML(recipe.recipe_id)}" aria-label="${isFavorite ? "Remove favorite" : "Save favorite"}">
-          ${isFavorite ? "★" : "☆"}
+          ${isFavorite ? ICON_STAR_FILLED : ICON_STAR_OUTLINE}
         </button>
       </div>
       <div class="recipe-card__meta">
@@ -1100,7 +1160,7 @@ function renderSuggestionsScreen() {
         </div>
         <div class="panel__title" style="margin:0;">
           <div>
-            <h2>Suggestion review</h2>
+            <h1>Suggestion review</h1>
             <p>One matching recipe at a time, with reasons that are easy to understand.</p>
           </div>
           <div class="button-row">
@@ -1171,11 +1231,11 @@ function renderRecipeDetailScreen() {
         </div>
         <div class="panel__title" style="margin:0;">
           <div>
-            <h2>${escapeHTML(recipe.title)}</h2>
+            <h1>${escapeHTML(recipe.title)}</h1>
             <p>${escapeHTML(recipe.summary)}</p>
           </div>
-          <button class="button button--tiny ${state.favorites.includes(recipe.recipe_id) ? "button--primary" : "button--ghost"}" type="button" data-action="toggle-favorite" data-recipe-id="${escapeHTML(recipe.recipe_id)}">
-            ${state.favorites.includes(recipe.recipe_id) ? "★" : "☆"}
+          <button class="button button--tiny ${state.favorites.includes(recipe.recipe_id) ? "button--primary" : "button--ghost"}" type="button" data-action="toggle-favorite" data-recipe-id="${escapeHTML(recipe.recipe_id)}" aria-label="${state.favorites.includes(recipe.recipe_id) ? "Remove favorite" : "Save favorite"}">
+            ${state.favorites.includes(recipe.recipe_id) ? ICON_STAR_FILLED : ICON_STAR_OUTLINE}
           </button>
         </div>
         <div class="badge-line">
@@ -1298,6 +1358,7 @@ function renderStepperScreen() {
 
   return `
     <section class="stepper-shell">
+      <h1 class="visually-hidden">Cooking ${escapeHTML(recipe.title)}</h1>
       <div class="hero-card">
         <div class="stepper-progress">
           <div>
@@ -1374,6 +1435,43 @@ function renderTimerBox(step, timer) {
   `;
 }
 
+function renderCelebrateScreen() {
+  const recipe = currentRecipe();
+  if (!recipe) {
+    return renderUnavailableCard("Nothing to celebrate yet", "Finish a recipe first.");
+  }
+  const isFavorite = state.favorites.includes(recipe.recipe_id);
+  const kid = state.kidName || "Chef";
+  const confettiColors = ["var(--sun)", "var(--coral)", "var(--lime)", "var(--accent)", "var(--icing)"];
+  const confettiCount = 24;
+  const confetti = Array.from({ length: confettiCount }, (_, i) => {
+    const color = confettiColors[i % confettiColors.length];
+    const offsetTop = (i * 13) % 80;
+    const rotate = (i * 37) % 60 - 30;
+    return `<span style="background:${color};margin-top:${offsetTop}px;transform:rotate(${rotate}deg);"></span>`;
+  }).join("");
+
+  return `
+    <section class="stack">
+      <div class="celebrate-card">
+        <div class="confetti" aria-hidden="true">${confetti}</div>
+        ${renderOlivia(`You did it, ${kid}! Great cooking.`, { variant: "stacked", size: "large" })}
+        <h1 class="celebrate-card__title">${escapeHTML(recipe.title)} — done!</h1>
+        <p class="celebrate-card__sub">${escapeHTML(recipe.summary)}</p>
+        <div class="button-row">
+          <button class="button ${isFavorite ? "button--ghost" : "button--primary"}" type="button" data-action="toggle-favorite" data-recipe-id="${escapeHTML(recipe.recipe_id)}">
+            ${isFavorite ? `${ICON_STAR_FILLED} Saved to favorites` : `${ICON_STAR_OUTLINE} Save to favorites`}
+          </button>
+        </div>
+        <div class="button-row">
+          <button class="button button--ghost" type="button" data-action="cook-again" data-recipe-id="${escapeHTML(recipe.recipe_id)}">Cook this again</button>
+          <button class="button button--primary" type="button" data-action="route" data-route="meal">Pick another meal</button>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
 function renderFavoritesScreen() {
   const favorites = state.recipes.filter((recipe) => state.favorites.includes(recipe.recipe_id));
   return `
@@ -1383,7 +1481,7 @@ function renderFavoritesScreen() {
           <span class="chip chip--accent">Favorites</span>
           <span class="chip chip--quiet">${favorites.length} saved</span>
         </div>
-        <h2>Saved recipes</h2>
+        <h1>Saved recipes</h1>
         <p>Favorites are a calm return path. They should stay lightweight and not turn into a ranking system.</p>
         <div class="button-row">
           <button class="button button--ghost" type="button" data-action="route" data-route="meal">Back to meal selection</button>
@@ -1430,6 +1528,9 @@ function renderBusyCard() {
   const detail = state.busyTimedOut
     ? "Local Ollama did not answer before the timer finished. KidsChef will try a smaller fallback."
     : `The cake fills up while KidsChef waits for a local recipe idea. About ${remainingSeconds}s left.`;
+  const oliviaLine = state.busyTimedOut
+    ? "Oh no — let me try a different recipe!"
+    : "Hold on, I'm thinking of something tasty…";
 
   return `
     <div class="state-card busy-card">
@@ -1437,6 +1538,7 @@ function renderBusyCard() {
         <span class="chip ${statusChip}">${state.busyTimedOut ? "Timeout" : "Loading"}</span>
         <span class="chip chip--quiet">${escapeHTML(state.busyMessage)}</span>
       </div>
+      ${renderOlivia(oliviaLine)}
       <div class="busy-card__body">
         <div class="cake-loader ${moodClass}" aria-hidden="true" style="--cake-fill:${fillPercent}%;">
           <div class="cake-loader__plate"></div>
@@ -1469,6 +1571,8 @@ function renderMainContent() {
   }
 
   switch (state.route) {
+    case "welcome":
+      return renderWelcomeScreen();
     case "meal":
       return renderMealScreen();
     case "ingredients":
@@ -1481,6 +1585,8 @@ function renderMainContent() {
       return renderRecipeDetailScreen();
     case "stepper":
       return renderStepperScreen();
+    case "celebrate":
+      return renderCelebrateScreen();
     case "favorites":
       return renderFavoritesScreen();
     default:
@@ -1490,14 +1596,20 @@ function renderMainContent() {
 
 function render() {
   const banner = state.apiStatus === "ready" ? "" : renderBanner();
+  const subtitle = state.kidName
+    ? `Cooking with ${escapeHTML(state.kidName)} and Princess Olivia.`
+    : "A calm cooking flow for kids, with Princess Olivia.";
 
   app.innerHTML = `
     <div class="shell">
       <header class="topbar">
         <div class="brand">
-          <div class="brand__mark">KidsChef MVP</div>
-          <h1 class="brand__title">${escapeHTML(formatRoute(state.route))}</h1>
-          <p class="brand__subtitle">A calm mobile-first cooking flow for kids that talks to local JSON APIs.</p>
+          <div class="brand__mark">
+            <img class="brand__chef" src="./assets/princess-olivia.svg" alt="" />
+            <span>KidsChef</span>
+          </div>
+          <span class="brand__route" aria-label="Current screen: ${escapeHTML(formatRoute(state.route))}">${escapeHTML(formatRoute(state.route))}</span>
+          <p class="brand__subtitle">${subtitle}</p>
         </div>
         ${renderStatusChips()}
       </header>
@@ -1607,6 +1719,18 @@ function wireEvents() {
       return;
     }
 
+    if (action === "cook-again") {
+      const recipeId = control.dataset.recipeId;
+      if (!recipeId) return;
+      state.activeStepIndex = 0;
+      clearTimer();
+      state.timer = null;
+      state.route = "stepper";
+      persistState();
+      render();
+      return;
+    }
+
     if (action === "repeat-step") {
       repeatStep();
       return;
@@ -1620,10 +1744,20 @@ function wireEvents() {
   });
 
   app.addEventListener("submit", (event) => {
-    const form = event.target.closest("#ingredient-form");
-    if (!form) return;
+    const welcomeForm = event.target.closest("#welcome-form");
+    if (welcomeForm) {
+      event.preventDefault();
+      const input = welcomeForm.querySelector("#kid-name-input");
+      const name = (input && input.value ? input.value : "").trim();
+      if (!name) return;
+      setState({ kidName: name, route: "meal" });
+      return;
+    }
+
+    const ingredientForm = event.target.closest("#ingredient-form");
+    if (!ingredientForm) return;
     event.preventDefault();
-    const input = form.querySelector("#ingredient-input");
+    const input = ingredientForm.querySelector("#ingredient-input");
     addIngredient(input.value);
   });
 
