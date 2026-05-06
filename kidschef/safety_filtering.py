@@ -6,27 +6,8 @@ from .recipe_models import (
     FilterDecision,
     Recipe,
     SafetyFilterRequest,
-    normalize_token,
     normalize_tokens,
 )
-
-STRICT_BLOCKED_FLAGS = {
-    "adult_help",
-    "heat",
-    "knife",
-    "oven",
-    "sharp_tool",
-    "stove",
-    "hot_surface",
-}
-
-STANDARD_BLOCKED_FLAGS = {
-    "knife",
-    "oven",
-    "sharp_tool",
-    "stove",
-    "hot_surface",
-}
 
 
 def filter_recipes(recipes: Sequence[Recipe], request: SafetyFilterRequest) -> list[Recipe]:
@@ -101,7 +82,6 @@ def _recipe_rejection_reasons(
     )
 
     _append_missing_appliances(reasons, recipe, request.available_appliances)
-    _append_safety_reasons(reasons, recipe, request.safety_mode)
 
     return reasons
 
@@ -139,37 +119,3 @@ def _append_missing_appliances(
     required = set(normalize_tokens(recipe.required_appliances))
     for appliance in sorted(required - available):
         reasons.append(f"missing_appliance:{appliance}")
-
-
-def _append_safety_reasons(
-    reasons: list[str],
-    recipe: Recipe,
-    safety_mode: str,
-) -> None:
-    mode = normalize_token(safety_mode)
-    flags = set(recipe.normalized_safety_flags)
-    step_levels = {normalize_token(step.safety_level) for step in recipe.steps}
-
-    if mode == "strict":
-        for flag in sorted(flags & STRICT_BLOCKED_FLAGS):
-            reasons.append(f"strict_blocked_flag:{flag}")
-        if recipe.adult_help_required:
-            reasons.append("strict_requires_adult_help")
-        if "adult_help" in step_levels:
-            reasons.append("strict_adult_help_step")
-        if "blocked" in step_levels:
-            reasons.append("blocked_step_present")
-        return
-
-    if mode in {"standard", "supervised"}:
-        if "blocked" in step_levels:
-            reasons.append("blocked_step_present")
-        if recipe.adult_help_required:
-            return reasons
-        for flag in sorted(flags & (STANDARD_BLOCKED_FLAGS | {"adult_help", "heat"})):
-            reasons.append(f"blocked_flag:{flag}")
-        if "adult_help" in step_levels or flags & {"adult_help", "heat"}:
-            reasons.append("adult_help_missing")
-        return
-
-    reasons.append(f"unknown_safety_mode:{mode}")

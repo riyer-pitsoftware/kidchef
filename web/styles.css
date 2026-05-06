@@ -819,6 +819,19 @@ button:disabled {
   border: 1px solid rgba(244, 185, 64, 0.18);
 }
 
+.grownup-banner {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, rgba(244, 185, 64, 0.22), rgba(244, 185, 64, 0.10));
+  border: 1px solid rgba(244, 185, 64, 0.36);
+  box-shadow: var(--shadow-1);
+}
+
+.grownup-banner .olivia__bubble {
+  background: rgba(255, 255, 255, 0.96);
+  font-weight: 700;
+}
+
 .badge-line {
   display: flex;
   flex-wrap: wrap;

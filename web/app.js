@@ -246,22 +246,6 @@ function normalizeRecipe(recipe) {
   };
 }
 
-function safetyAllowsRecipe(recipe) {
-  const safetyFlags = new Set(recipe.safety_flags || []);
-  const requiresAdultHelp = Boolean(recipe.adult_help_required);
-  const strictBlocked = ["knife", "stove", "oven"].some((flag) => safetyFlags.has(flag));
-
-  if (state.safetyMode === "strict" && strictBlocked) {
-    return { allowed: false, reason: "This recipe uses a blocked stove, oven, or knife step." };
-  }
-
-  if (state.safetyMode === "standard" && requiresAdultHelp && strictBlocked) {
-    return { allowed: true, reason: "This recipe needs adult help." };
-  }
-
-  return { allowed: true, reason: requiresAdultHelp ? "This recipe needs adult help." : "Safe for the current mode." };
-}
-
 function filtersAllowRecipe(recipe) {
   const blockedAllergens = state.filters.allergens;
   const requiredDiets = state.filters.diets;
@@ -336,20 +320,23 @@ function capitalize(value) {
 function computeSuggestions() {
   const safe = [];
   const possible = [];
-  const blocked = [];
 
   for (const recipe of state.recipes) {
     if (recipe.meal_type !== state.mealType) {
       continue;
     }
+    if (recipe.validation_status === "rejected") {
+      continue;
+    }
+    if (!filtersAllowRecipe(recipe).allowed) {
+      continue;
+    }
 
-    const filterCheck = filtersAllowRecipe(recipe);
-    const safetyCheck = safetyAllowsRecipe(recipe);
     const pantryAllowed = recipeUsesOnlyChosenIngredients(recipe);
     const missingIngredients = pantryAllowed ? [] : missingIngredientsForRecipe(recipe);
     const reasons = recipeCardReasons(recipe);
 
-    if (pantryAllowed && filterCheck.allowed && safetyCheck.allowed && recipe.validation_status !== "rejected") {
+    if (pantryAllowed) {
       safe.push({
         ...recipe,
         availabilityState: "ready",
@@ -358,33 +345,19 @@ function computeSuggestions() {
       continue;
     }
 
-    if (!pantryAllowed && filterCheck.allowed && safetyCheck.allowed && recipe.validation_status !== "rejected") {
-      possible.push({
-        ...recipe,
-        availabilityState: "possible",
-        missingIngredients,
-        possibleReason:
-          missingIngredients.length === 1
-            ? `This could work if a parent adds ${missingIngredients[0]}.`
-            : `This could work if a parent adds ${joinList(missingIngredients)}.`,
-        cardReasons: reasons.length ? reasons : ["Possible with more ingredients"],
-      });
-      continue;
-    }
-
-    blocked.push({
+    possible.push({
       ...recipe,
-      availabilityState: "blocked",
-      blockedReason: !filterCheck.allowed
-        ? filterCheck.reason
-        : !safetyCheck.allowed
-          ? safetyCheck.reason
-          : "This recipe is not available in the current mode.",
-      cardReasons: reasons.length ? reasons : ["Does not fit the current rules"],
+      availabilityState: "possible",
+      missingIngredients,
+      possibleReason:
+        missingIngredients.length === 1
+          ? `This could work if a parent adds ${missingIngredients[0]}.`
+          : `This could work if a parent adds ${joinList(missingIngredients)}.`,
+      cardReasons: reasons.length ? reasons : ["Possible with more ingredients"],
     });
   }
 
-  return { safe, possible, blocked };
+  return { safe, possible };
 }
 
 function currentRecipe() {
@@ -1071,18 +1044,13 @@ function renderSuggestionCards(recipes) {
 
 function renderSuggestionCard(recipe) {
   const isFavorite = state.favorites.includes(recipe.recipe_id);
-  const safetyCheck = safetyAllowsRecipe(recipe);
-  const filterCheck = filtersAllowRecipe(recipe);
-  const blocked = recipe.availabilityState === "blocked" || !safetyCheck.allowed || !filterCheck.allowed;
   const possible = recipe.availabilityState === "possible";
-  const summaryTone = blocked ? "tag--warn" : possible ? "tag--accent" : "tag--soft";
-  const reason = possible
-    ? recipe.possibleReason
-    : recipe.blockedReason || safetyCheck.reason || filterCheck.reason;
+  const adultHelp = Boolean(recipe.adult_help_required);
+  const summaryTone = possible ? "tag--accent" : "tag--soft";
   const missingIngredients = Array.isArray(recipe.missingIngredients) ? recipe.missingIngredients : [];
 
   return `
-    <article class="recipe-card ${blocked ? "step-card--blocked" : possible ? "step-card--help" : ""}">
+    <article class="recipe-card ${possible ? "step-card--help" : ""}">
       <div class="recipe-card__top">
         <div class="stack stack--tight">
           <h3 class="recipe-card__title">${escapeHTML(recipe.title)}</h3>
@@ -1101,11 +1069,11 @@ function renderSuggestionCard(recipe) {
       </div>
       <div class="stack">
         <div class="badge-line">${renderChips(recipe.cardReasons || [], "soft")}</div>
-        <div class="muted">${escapeHTML(blocked ? reason : `Matches ${joinList(recipe.cardReasons || ["your filters"])}`)}</div>
+        <div class="muted">${escapeHTML(possible ? recipe.possibleReason : `Matches ${joinList(recipe.cardReasons || ["your filters"])}`)}</div>
       </div>
       <div class="recipe-card__actions">
         <div class="badge-line">
-          ${possible ? `<span class="mini-flag">${escapeHTML("Possible with parent help")}</span>` : recipe.adult_help_required ? `<span class="mini-flag mini-flag--warn">Adult help</span>` : `<span class="mini-flag mini-flag--good">Good fit</span>`}
+          ${adultHelp ? `<span class="mini-flag mini-flag--warn">Cook with a grown-up</span>` : `<span class="mini-flag mini-flag--good">On your own</span>`}
           ${recipe.validation_status === "validated" ? `<span class="mini-flag">Validated</span>` : `<span class="mini-flag mini-flag--warn">Needs review</span>`}
         </div>
         ${
@@ -1144,11 +1112,10 @@ function renderSuggestionCard(recipe) {
 }
 
 function renderSuggestionsScreen() {
-  const { safe, possible, blocked } = computeSuggestions();
+  const { safe, possible } = computeSuggestions();
   const recipes = state.suggestions.length ? state.suggestions : safe;
   const hasRecipes = recipes.length > 0;
   const hasPossibleRecipes = !hasRecipes && possible.length > 0;
-  const blockedRecipe = !hasRecipes && blocked[0];
 
   return `
     <section class="stack">
@@ -1180,22 +1147,7 @@ function renderSuggestionsScreen() {
               </div>
               ${renderSuggestionCards(possible)}
             `
-          : blockedRecipe
-            ? `
-              <div class="state-card step-card--blocked">
-                <div class="badge-line">
-                  <span class="chip chip--warn">Blocked</span>
-                  <span class="chip chip--quiet">${blocked.length} blocked option${blocked.length === 1 ? "" : "s"}</span>
-                </div>
-                <h3>${escapeHTML(blockedRecipe.title)} is not available with the current rules</h3>
-                <p class="muted">${escapeHTML(blockedRecipe.blockedReason || "This recipe does not fit the current filters or cooking-safety mode.")}</p>
-                <div class="button-row">
-                  <button class="button button--ghost" type="button" data-action="route" data-route="filters">Change filters</button>
-                  <button class="button button--primary" type="button" data-action="route" data-route="meal">Pick another meal</button>
-                </div>
-              </div>
-            `
-            : `
+          : `
               <div class="empty-card">
                 <h3>No suggestions yet</h3>
                 <p class="muted">Add ingredients or adjust filters, then search again.</p>
@@ -1217,13 +1169,12 @@ function renderRecipeDetailScreen() {
     return renderUnavailableCard("Recipe unavailable", "Pick a suggestion first.");
   }
 
-  const safetyCheck = safetyAllowsRecipe(recipe);
-  const filterCheck = filtersAllowRecipe(recipe);
-  const blocked = !safetyCheck.allowed || !filterCheck.allowed || recipe.validation_status === "rejected";
+  const adultHelp = Boolean(recipe.adult_help_required);
 
   return `
     <section class="stack">
-      <div class="hero-card ${blocked ? "step-card--blocked" : ""}">
+      ${adultHelp ? renderGrownUpBanner() : ""}
+      <div class="hero-card">
         <div class="badge-line">
           <span class="chip chip--accent">${escapeHTML(capitalize(recipe.meal_type))}</span>
           <span class="chip chip--quiet">${escapeHTML(recipe.difficulty)}</span>
@@ -1239,16 +1190,13 @@ function renderRecipeDetailScreen() {
           </button>
         </div>
         <div class="badge-line">
-          <span class="mini-flag ${blocked ? "mini-flag--warn" : "mini-flag--good"}">${escapeHTML(blocked ? "Blocked" : "Ready")}</span>
-          ${recipe.adult_help_required ? `<span class="mini-flag mini-flag--warn">Adult help required</span>` : `<span class="mini-flag mini-flag--good">Child-safe steps</span>`}
+          ${adultHelp ? `<span class="mini-flag mini-flag--warn">Cook with a grown-up</span>` : `<span class="mini-flag mini-flag--good">Safe to make on your own</span>`}
         </div>
         <div class="button-row">
           <button class="button button--ghost" type="button" data-action="route" data-route="suggestions">Back to suggestions</button>
-          <button class="button button--primary" type="button" data-action="start-cooking" data-recipe-id="${escapeHTML(recipe.recipe_id)}"${blocked ? " disabled" : ""}>Start cooking</button>
+          <button class="button button--primary" type="button" data-action="start-cooking" data-recipe-id="${escapeHTML(recipe.recipe_id)}">Start cooking</button>
         </div>
       </div>
-
-      ${blocked ? renderBlockedState(recipe) : ""}
 
       <div class="grid grid--2">
         <div class="panel">
@@ -1277,7 +1225,7 @@ function renderRecipeDetailScreen() {
             <div class="badge-line">
               ${recipe.safety_flags.length ? renderChips(recipe.safety_flags.map((flag) => flag.replaceAll("_", " ")), "warn") : `<span class="chip chip--accent">No safety flags</span>`}
             </div>
-            <div class="muted">${escapeHTML(safetyCheck.reason)}</div>
+            <div class="muted">${escapeHTML(adultHelp ? "Cook this one with a grown-up nearby." : "Safe to make on your own.")}</div>
           </div>
         </div>
       </div>
@@ -1322,22 +1270,10 @@ function renderRecipeDetailScreen() {
   `;
 }
 
-function renderBlockedState(recipe) {
-  const safetyCheck = safetyAllowsRecipe(recipe);
-  const filterCheck = filtersAllowRecipe(recipe);
-  const message = recipe.blockedReason || safetyCheck.reason || filterCheck.reason;
+function renderGrownUpBanner() {
   return `
-    <div class="state-card step-card--blocked">
-      <div class="badge-line">
-        <span class="chip chip--warn">Blocked</span>
-        <span class="chip chip--quiet">Rule check</span>
-      </div>
-      <h3>Why this recipe is blocked</h3>
-      <p class="muted">${escapeHTML(message)}</p>
-      <div class="button-row">
-        <button class="button button--ghost" type="button" data-action="route" data-route="filters">Change filters</button>
-        <button class="button button--primary" type="button" data-action="route" data-route="suggestions">Pick another recipe</button>
-      </div>
+    <div class="grownup-banner" role="note">
+      ${renderOlivia("Grab a grown-up — this one needs help with hot, sharp, or zappy parts!")}
     </div>
   `;
 }
@@ -1680,11 +1616,6 @@ function wireEvents() {
       const recipeId = control.dataset.recipeId;
       const recipe = state.recipes.find((item) => item.recipe_id === recipeId);
       if (!recipe) return;
-      const canStart = safetyAllowsRecipe(recipe).allowed && filtersAllowRecipe(recipe).allowed;
-      if (!canStart) {
-        await loadRecipeDetail(recipeId, false);
-        return;
-      }
       await loadRecipeDetail(recipeId, true);
       return;
     }

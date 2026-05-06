@@ -10,7 +10,7 @@ class SafetyFilteringTests(unittest.TestCase):
         meal_types = {recipe.meal_type for recipe in SEED_RECIPES}
         self.assertEqual(meal_types, {"breakfast", "lunch", "dinner", "snack"})
 
-    def test_strict_mode_blocks_adult_help_recipes(self) -> None:
+    def test_strict_mode_no_longer_blocks_adult_help_recipes(self) -> None:
         request = SafetyFilterRequest(
             meal_type="breakfast",
             available_appliances=("microwave",),
@@ -19,7 +19,7 @@ class SafetyFilteringTests(unittest.TestCase):
 
         allowed_ids = {recipe.recipe_id for recipe in filter_recipes(SEED_RECIPES, request)}
         self.assertIn("breakfast-berry-yogurt-parfait", allowed_ids)
-        self.assertNotIn("breakfast-microwave-egg-mug", allowed_ids)
+        self.assertIn("breakfast-microwave-egg-mug", allowed_ids)
 
     def test_standard_mode_allows_adult_help_when_appliance_is_available(self) -> None:
         request = SafetyFilterRequest(
