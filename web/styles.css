@@ -156,6 +156,23 @@ button:disabled {
   max-width: 60ch;
 }
 
+.brand__reset {
+  margin-top: var(--space-1);
+  background: transparent;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  width: fit-content;
+}
+
+.brand__reset:hover,
+.brand__reset:focus-visible {
+  color: var(--accent-strong);
+}
+
 .status-stack {
   display: flex;
   flex-wrap: wrap;

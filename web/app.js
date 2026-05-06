@@ -1546,6 +1546,7 @@ function render() {
           </div>
           <span class="brand__route" aria-label="Current screen: ${escapeHTML(formatRoute(state.route))}">${escapeHTML(formatRoute(state.route))}</span>
           <p class="brand__subtitle">${subtitle}</p>
+          ${state.kidName && state.route !== "welcome" ? `<button class="brand__reset" type="button" data-action="change-name">Not ${escapeHTML(state.kidName)}? Start over</button>` : ""}
         </div>
         ${renderStatusChips()}
       </header>
@@ -1647,6 +1648,12 @@ function wireEvents() {
 
     if (action === "step-next") {
       stepForward();
+      return;
+    }
+
+    if (action === "change-name") {
+      if (!confirm("Start over and pick a new name? Your favorites and pantry will be kept.")) return;
+      setState({ kidName: "", route: "welcome" });
       return;
     }
 
